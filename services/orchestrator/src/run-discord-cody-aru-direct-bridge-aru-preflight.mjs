@@ -7,18 +7,18 @@ import { resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const OPERATION = "aru_discord_read_only_preflight";
-const FIXED_RUNTIME_ROOT = "/root/.local/share/hermes-cody-aru-preflight/runtime";
+const FIXED_RUNTIME_ROOT = "/root/.hermes-cody-aru-preflight/runtime";
 const FIXED_RUNTIME_ANCESTOR_PATHS = Object.freeze([
   "/",
   "/root",
-  "/root/.local",
-  "/root/.local/share",
-  "/root/.local/share/hermes-cody-aru-preflight",
+  "/root/.hermes-cody-aru-preflight",
   FIXED_RUNTIME_ROOT,
 ]);
 const LATCH_DIRECTORY_BASENAME = "aru-preflight-latches";
+const POSIX_OWNER_PERMISSION_MASK = 0o700n;
 const POSIX_GROUP_OR_OTHER_PERMISSION_MASK = 0o077n;
 const POSIX_GROUP_OR_OTHER_WRITE_PERMISSION_MASK = 0o022n;
+const POSIX_SPECIAL_PERMISSION_MASK = 0o7000n;
 const ACTION_DIGEST = /^[a-f0-9]{64}$/u;
 
 function rejectRuntime() { throw new Error("protected runtime rejected"); }
@@ -56,10 +56,16 @@ function protectedAnchorDirectory(stat, getuid, expectedIdentity = null) {
     || !stat.isDirectory()
     || stat.isSymbolicLink()
     || stat.uid !== BigInt(uid)
+    || (stat.mode & POSIX_OWNER_PERMISSION_MASK) !== POSIX_OWNER_PERMISSION_MASK
     || (stat.mode & POSIX_GROUP_OR_OTHER_WRITE_PERMISSION_MASK) !== 0n
+    || (stat.mode & POSIX_SPECIAL_PERMISSION_MASK) !== 0n
     || (expectedIdentity !== null && !sameIdentity(expectedIdentity, stat))
   ) rejectRuntime();
   return Object.freeze({ dev: stat.dev, ino: stat.ino });
+}
+
+function fixedAnchorPath(path) {
+  return path === "/" || path === "/root";
 }
 
 function protectedLatchFile(stat, getuid, expectedIdentity = null, { consumed = true } = {}) {
@@ -126,7 +132,7 @@ async function captureProtectedAncestorChain({ ancestorPaths, fsPromises, getuid
   for (let index = 0; index < ancestorPaths.length; index += 1) {
     const stat = await fsPromises.lstat(ancestorPaths[index], { bigint: true });
     const expectedIdentity = expectedIdentities?.[index] ?? null;
-    identities.push(index === 0
+    identities.push(fixedAnchorPath(ancestorPaths[index])
       ? protectedAnchorDirectory(stat, getuid, expectedIdentity)
       : protectedDirectory(stat, getuid, expectedIdentity));
   }
@@ -379,6 +385,7 @@ if (isDirectInvocation()) try {
   ]);
   if (
     typeof process.getuid !== "function"
+    || process.getuid() !== 0
     || !Number.isInteger(fsConstants.O_WRONLY)
     || !Number.isInteger(fsConstants.O_CREAT)
     || !Number.isInteger(fsConstants.O_EXCL)

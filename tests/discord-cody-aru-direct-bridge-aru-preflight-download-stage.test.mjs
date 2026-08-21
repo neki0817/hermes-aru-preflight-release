@@ -72,6 +72,8 @@ test("download-only artifact is guarded staging code, not a transport command or
   assert.match(outer, new RegExp(`\\[ "\\$\\{${DOWNLOAD_STAGE_ENVIRONMENT_GUARD}:-\\}" = 1 \\] \\|\\| stage_failure`, "u"));
   assert.match(outer, /LC_ALL=C\nexport LC_ALL/u);
   assert.ok(outer.includes(`STAGE_NAMESPACE='${STAGE_NAMESPACE}'`));
+  assert.match(outer, /\n\s*assert_nonwritable_anchor_directory \/\n\s*assert_nonwritable_anchor_directory \/root/u);
+  assert.match(outer, /directory:0:7\[0145\]\[0145\]/u);
   assert.match(outer, /create_fresh_private_directory "\$STAGE_NAMESPACE"/u);
   assert.match(outer, /\/usr\/bin\/base64 --decode > "\$LIBRARY_PATH"/u);
   assert.match(outer, /\/usr\/bin\/base64 --decode > "\$RUNNER_PATH"/u);
@@ -80,6 +82,7 @@ test("download-only artifact is guarded staging code, not a transport command or
   assert.match(outer, /message_send_attempt_count":0/u);
   assert.doesNotMatch(outer, /\b(?:curl|wget|ssh|git|node|npm|apt|rm|rmdir|mv)\b/iu);
   assert.doesNotMatch(outer, /https?:\/\//iu);
+  assert.doesNotMatch(outer, /\/root\/\.local\/share\/hermes-cody-aru-preflight/u);
   assert.doesNotMatch(outer, /(?:DISCORD_BOT_TOKEN|authorization|bearer)/iu);
   assert.doesNotMatch(outer, /(?:exec|\. )\s+[^\n]*(?:LIBRARY_PATH|RUNNER_PATH)/u);
 });

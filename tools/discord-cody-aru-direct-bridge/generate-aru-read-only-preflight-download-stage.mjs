@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const OPERATION = "aru_discord_read_only_preflight_download_stage";
 export const DOWNLOAD_STAGE_ENVIRONMENT_GUARD = "HERMES_ARU_DOWNLOAD_STAGE";
 export const RELEASE_SCHEMA_VERSION = "hermes-agents-discord-cody-aru-aru-preflight-release/v1";
-export const STAGE_NAMESPACE = "/root/.local/share/hermes-cody-aru-preflight";
+export const STAGE_NAMESPACE = "/root/.hermes-cody-aru-preflight";
 
 const SOURCE_SPECS = Object.freeze([
   Object.freeze({
@@ -111,36 +111,36 @@ assert_private_directory() {
   [ "$(/usr/bin/stat -c '%F:%u:%a' -- "$1")" = 'directory:0:700' ] || stage_failure
 }
 
-create_or_assert_private_parent() {
-  [ ! -L "$1" ] || stage_failure
-  if [ -e "$1" ]; then
-    assert_private_directory "$1"
-  else
-    /usr/bin/mkdir -m 700 -- "$1" || stage_failure
-    assert_private_directory "$1"
-  fi
-}
-
-create_fresh_private_directory() {
+ create_fresh_private_directory() {
   [ ! -L "$1" ] || stage_failure
   [ ! -e "$1" ] || stage_failure
   /usr/bin/mkdir -m 700 -- "$1" || stage_failure
   assert_private_directory "$1"
 }
 
-assert_private_regular_file() {
+ assert_private_regular_file() {
   [ ! -L "$1" ] || stage_failure
   [ "$(/usr/bin/stat -c '%F:%u:%a:%s' -- "$1")" = "regular file:0:400:$3" ] || stage_failure
   [ "$(/usr/bin/stat -c '%h' -- "$1")" = 1 ] || stage_failure
   stage_actual_hash=$(/usr/bin/sha256sum -- "$1" | /usr/bin/cut -d ' ' -f 1) || stage_failure
-  [ "$stage_actual_hash" = "$2" ] || stage_failure
-}
+   [ "$stage_actual_hash" = "$2" ] || stage_failure
+ }
 
-[ "$#" -eq 0 ] || stage_failure
-[ "\${${DOWNLOAD_STAGE_ENVIRONMENT_GUARD}:-}" = 1 ] || stage_failure
-[ "$(/usr/bin/id -u)" = 0 ] || stage_failure
-[ ! -L /root ] || stage_failure
-[ "$(/usr/bin/stat -c '%F:%u:%a' -- /root)" = 'directory:0:700' ] || stage_failure
+ assert_nonwritable_anchor_directory() {
+   [ ! -L "$1" ] || stage_failure
+   [ -d "$1" ] || stage_failure
+   stage_anchor=$(/usr/bin/stat -c '%F:%u:%a' -- "$1") || stage_failure
+   case "$stage_anchor" in
+     directory:0:7[0145][0145]) ;;
+     *) stage_failure ;;
+   esac
+ }
+
+ [ "$#" -eq 0 ] || stage_failure
+ [ "\${${DOWNLOAD_STAGE_ENVIRONMENT_GUARD}:-}" = 1 ] || stage_failure
+ [ "$(/usr/bin/id -u)" = 0 ] || stage_failure
+ assert_nonwritable_anchor_directory /
+ assert_nonwritable_anchor_directory /root
 
 STAGE_NAMESPACE=${shellQuoted(STAGE_NAMESPACE)}
 RUNTIME_ROOT="$STAGE_NAMESPACE/runtime"
@@ -155,10 +155,11 @@ RUNNER_SHA256=${shellQuoted(runner.sha256)}
 LIBRARY_SIZE=${library.size}
 RUNNER_SIZE=${runner.size}
 
-create_or_assert_private_parent /root/.local
-create_or_assert_private_parent /root/.local/share
-create_fresh_private_directory "$STAGE_NAMESPACE"
-create_fresh_private_directory "$RUNTIME_ROOT"
+ create_fresh_private_directory "$STAGE_NAMESPACE"
+ assert_nonwritable_anchor_directory /
+ assert_nonwritable_anchor_directory /root
+ assert_private_directory "$STAGE_NAMESPACE"
+ create_fresh_private_directory "$RUNTIME_ROOT"
 create_fresh_private_directory "$RELEASES_ROOT"
 create_fresh_private_directory "$RELEASE_ROOT"
 create_fresh_private_directory "$RELEASE_ROOT/services"
