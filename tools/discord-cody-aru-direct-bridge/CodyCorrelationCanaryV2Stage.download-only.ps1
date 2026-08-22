@@ -10,11 +10,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:StageGuardName = 'HERMES_CODY_CORRELATION_CANARY_STAGE'
-$script:ReleaseCommit = 'c247d190cfdfbd5fc17aedf1e36b13873ab1d754'
+$script:ReleaseCommit = 'd1b356f4adccfb4201c98bdf6ac5514972e2c1de'
 $script:OuterFileName = 'CodyCorrelationCanaryV2OuterStageReference.ps1'
 $script:LauncherFileName = 'CodyCorrelationCanaryV2Launcher.ps1'
-$script:ExpectedOuterSha256 = '0c233987e0c635c5427c6f237b542d5876a1b6e829bc4fffa52b3e7a430662f9'
-$script:ExpectedLauncherSha256 = '56c1dcadd3234de0fcd97d909af7ccf572d07fe12c467d3a8af7f0d2bbb0c666'
+$script:ExpectedOuterSha256 = 'deb7a6acf6746b12d235f2ce4f9fa9ebd2bc2e99908bcf7ed868cc8caf20ec32'
+$script:ExpectedLauncherSha256 = '13a2c87a917e9b925bad3049d7be3ad26f9b08878458594a4f34b5a7c1c166e4'
 $script:MaximumSourceBytes = 256KB
 
 function Throw-CodyCorrelationCanaryV2DownloadStageError {
