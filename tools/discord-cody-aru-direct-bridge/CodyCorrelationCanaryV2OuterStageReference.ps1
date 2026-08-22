@@ -80,14 +80,32 @@ function Get-CodyCorrelationCanaryV2OuterStageCurrentUserSid {
     if([string]::IsNullOrWhiteSpace($sidValue)){Throw-CodyCorrelationCanaryV2OuterStageError 'DISCORD_CODY_ARU_CORRELATION_CANARY_CODY_STAGE_DACL_REJECTED'}
     return [Security.Principal.SecurityIdentifier]::new($sidValue)
 }
+function Get-CodyCorrelationCanaryV2OuterStageAccessControlObject {
+    param([Parameter(Mandatory)][object]$Item,[Parameter(Mandatory)][Security.AccessControl.AccessControlSections]$Sections)
+    $extensions = 'System.IO.FileSystemAclExtensions' -as [type]
+    if($null -ne $extensions){
+        if($Item -is [IO.DirectoryInfo]){return $extensions::GetAccessControl([IO.DirectoryInfo]$Item,$Sections)}
+        if($Item -is [IO.FileInfo]){return $extensions::GetAccessControl([IO.FileInfo]$Item,$Sections)}
+    }
+    return $Item.GetAccessControl($Sections)
+}
+function Set-CodyCorrelationCanaryV2OuterStageAccessControlObject {
+    param([Parameter(Mandatory)][object]$Item,[Parameter(Mandatory)][Security.AccessControl.FileSystemSecurity]$Security)
+    $extensions = 'System.IO.FileSystemAclExtensions' -as [type]
+    if($null -ne $extensions){
+        if($Item -is [IO.DirectoryInfo]){[void]$extensions::SetAccessControl([IO.DirectoryInfo]$Item,[Security.AccessControl.DirectorySecurity]$Security);return}
+        if($Item -is [IO.FileInfo]){[void]$extensions::SetAccessControl([IO.FileInfo]$Item,[Security.AccessControl.FileSecurity]$Security);return}
+    }
+    $Item.SetAccessControl($Security)
+}
 function Get-CodyCorrelationCanaryV2OuterStageAccessControl {
     param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][bool]$Directory)
     $item=Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     if([bool]$item.PSIsContainer -ne $Directory -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){Throw-CodyCorrelationCanaryV2OuterStageError 'DISCORD_CODY_ARU_CORRELATION_CANARY_CODY_STAGE_DACL_REJECTED'}
     return [pscustomobject]@{
         item=$item
-        owner=$item.GetAccessControl([Security.AccessControl.AccessControlSections]::Owner).GetOwner([Security.Principal.SecurityIdentifier])
-        dacl=$item.GetAccessControl([Security.AccessControl.AccessControlSections]::Access)
+        owner=(Get-CodyCorrelationCanaryV2OuterStageAccessControlObject $item ([Security.AccessControl.AccessControlSections]::Owner)).GetOwner([Security.Principal.SecurityIdentifier])
+        dacl=Get-CodyCorrelationCanaryV2OuterStageAccessControlObject $item ([Security.AccessControl.AccessControlSections]::Access)
     }
 }
 function Assert-CodyCorrelationCanaryV2OuterStageCurrentUserOnlyDacl {
@@ -110,10 +128,10 @@ function Set-CodyCorrelationCanaryV2OuterStageCurrentUserOnlyDacl {
         $security=Get-CodyCorrelationCanaryV2OuterStageAccessControl $Path $Directory
         if(-not $security.owner.Value.Equals($sid.Value,[StringComparison]::OrdinalIgnoreCase)){Throw-CodyCorrelationCanaryV2OuterStageError 'DISCORD_CODY_ARU_CORRELATION_CANARY_CODY_STAGE_DACL_REJECTED'}
         $security.dacl.SetAccessRuleProtection($true,$false)
-        foreach($rule in @($security.dacl.Access)){[void]$security.dacl.RemoveAccessRuleAll($rule)}
+        foreach($rule in @($security.dacl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))){if($null -ne $rule){[void]$security.dacl.RemoveAccessRuleAll($rule)}}
         $inheritance=if($Directory){[Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit}else{[Security.AccessControl.InheritanceFlags]::None}
         $security.dacl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,[Security.AccessControl.FileSystemRights]::FullControl,$inheritance,[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow))
-        $security.item.SetAccessControl($security.dacl)
+        Set-CodyCorrelationCanaryV2OuterStageAccessControlObject $security.item $security.dacl
         Assert-CodyCorrelationCanaryV2OuterStageCurrentUserOnlyDacl $Path $Directory
     } catch {
         if((Get-CodyCorrelationCanaryV2OuterStageErrorCode $_) -ne 'DISCORD_CODY_ARU_CORRELATION_CANARY_CODY_STAGE_REJECTED'){throw}

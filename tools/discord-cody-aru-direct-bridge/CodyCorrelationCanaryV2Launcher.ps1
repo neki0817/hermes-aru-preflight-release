@@ -170,14 +170,32 @@ function Get-CodyCorrelationCanaryV2CurrentUserSid {
     if([string]::IsNullOrWhiteSpace($sidValue)){Throw-CodyCorrelationCanaryV2Error 'DISCORD_CODY_ARU_CORRELATION_CANARY_CODY_ACL_REJECTED'}
     return [Security.Principal.SecurityIdentifier]::new($sidValue)
 }
+function Get-CodyCorrelationCanaryV2AccessControlObject {
+    param([Parameter(Mandatory)][object]$Item,[Parameter(Mandatory)][Security.AccessControl.AccessControlSections]$Sections)
+    $extensions = 'System.IO.FileSystemAclExtensions' -as [type]
+    if($null -ne $extensions){
+        if($Item -is [IO.DirectoryInfo]){return $extensions::GetAccessControl([IO.DirectoryInfo]$Item,$Sections)}
+        if($Item -is [IO.FileInfo]){return $extensions::GetAccessControl([IO.FileInfo]$Item,$Sections)}
+    }
+    return $Item.GetAccessControl($Sections)
+}
+function Set-CodyCorrelationCanaryV2AccessControlObject {
+    param([Parameter(Mandatory)][object]$Item,[Parameter(Mandatory)][Security.AccessControl.FileSystemSecurity]$Security)
+    $extensions = 'System.IO.FileSystemAclExtensions' -as [type]
+    if($null -ne $extensions){
+        if($Item -is [IO.DirectoryInfo]){[void]$extensions::SetAccessControl([IO.DirectoryInfo]$Item,[Security.AccessControl.DirectorySecurity]$Security);return}
+        if($Item -is [IO.FileInfo]){[void]$extensions::SetAccessControl([IO.FileInfo]$Item,[Security.AccessControl.FileSecurity]$Security);return}
+    }
+    $Item.SetAccessControl($Security)
+}
 function Get-CodyCorrelationCanaryV2AccessControl {
     param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][bool]$Directory)
     $item=Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     if([bool]$item.PSIsContainer -ne $Directory -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0){Throw-CodyCorrelationCanaryV2Error 'DISCORD_CODY_ARU_CORRELATION_CANARY_CODY_ACL_REJECTED'}
     return [pscustomobject]@{
         item=$item
-        owner=$item.GetAccessControl([Security.AccessControl.AccessControlSections]::Owner).GetOwner([Security.Principal.SecurityIdentifier])
-        dacl=$item.GetAccessControl([Security.AccessControl.AccessControlSections]::Access)
+        owner=(Get-CodyCorrelationCanaryV2AccessControlObject $item ([Security.AccessControl.AccessControlSections]::Owner)).GetOwner([Security.Principal.SecurityIdentifier])
+        dacl=Get-CodyCorrelationCanaryV2AccessControlObject $item ([Security.AccessControl.AccessControlSections]::Access)
     }
 }
 function Set-CodyCorrelationCanaryV2CurrentUserOnlyDacl { param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][bool]$Directory)
@@ -186,10 +204,10 @@ function Set-CodyCorrelationCanaryV2CurrentUserOnlyDacl { param([Parameter(Manda
         $security=Get-CodyCorrelationCanaryV2AccessControl $Path $Directory
         if(-not $security.owner.Value.Equals($sid.Value,[StringComparison]::OrdinalIgnoreCase)){Throw-CodyCorrelationCanaryV2Error 'DISCORD_CODY_ARU_CORRELATION_CANARY_CODY_ACL_REJECTED'}
         $security.dacl.SetAccessRuleProtection($true,$false)
-        foreach($existing in @($security.dacl.Access)){[void]$security.dacl.RemoveAccessRuleAll($existing)}
+        foreach($existing in @($security.dacl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))){if($null -ne $existing){[void]$security.dacl.RemoveAccessRuleAll($existing)}}
         $inheritance=if($Directory){[Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [Security.AccessControl.InheritanceFlags]::ObjectInherit}else{[Security.AccessControl.InheritanceFlags]::None}
         $security.dacl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($sid,[Security.AccessControl.FileSystemRights]::FullControl,$inheritance,[Security.AccessControl.PropagationFlags]::None,[Security.AccessControl.AccessControlType]::Allow))
-        $security.item.SetAccessControl($security.dacl)
+        Set-CodyCorrelationCanaryV2AccessControlObject $security.item $security.dacl
         Assert-CodyCorrelationCanaryV2CurrentUserOnlyDacl $Path $Directory
     } catch {
         if((Get-CodyCorrelationCanaryV2ErrorCode $_) -eq 'DISCORD_CODY_ARU_CORRELATION_CANARY_CODY_ACL_REJECTED'){throw}
