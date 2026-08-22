@@ -11,6 +11,7 @@ if ($MyInvocation.InvocationName -ne '.') {
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $script:V2LauncherFileName = 'CodyCorrelationCanaryV2Launcher.ps1'
+$script:V2NamespaceDirectoryName = 'HermesAgentsCodyAruCorrelationCanaryV2'
 $script:V2ServiceDirectoryName = 'discord-cody-aru-correlation-canary-v2'
 $script:V2LauncherDirectoryName = 'launcher'
 $script:V2ProofFileName = 'CodyCorrelationCanaryV2StageProof.json'
@@ -141,7 +142,7 @@ function Get-CodyCorrelationCanaryV2OuterStageSha256FromFile {
 function Get-CodyCorrelationCanaryV2OuterStageLayout {
     param([Parameter(Mandatory)][string]$PinnedLauncherSha256)
     $local=Get-CodyCorrelationCanaryV2OuterStageNormalizedPath (Get-CodyCorrelationCanaryV2OuterStageLocalAppDataRoot)
-    $namespace=Get-CodyCorrelationCanaryV2OuterStageNormalizedPath (Join-Path $local 'HermesAgents')
+    $namespace=Get-CodyCorrelationCanaryV2OuterStageNormalizedPath (Join-Path $local $script:V2NamespaceDirectoryName)
     $service=Get-CodyCorrelationCanaryV2OuterStageNormalizedPath (Join-Path $namespace $script:V2ServiceDirectoryName)
     $launcher=Get-CodyCorrelationCanaryV2OuterStageNormalizedPath (Join-Path $service $script:V2LauncherDirectoryName)
     $stage=Get-CodyCorrelationCanaryV2OuterStageNormalizedPath (Join-Path $launcher $PinnedLauncherSha256)

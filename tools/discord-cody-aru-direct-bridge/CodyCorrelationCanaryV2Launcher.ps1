@@ -16,6 +16,7 @@ $script:SchemaVersion = 'hermes-agents-discord-cody-aru-correlation-canary-cody-
 $script:ManifestSchemaVersion = 'hermes-agents-discord-cody-aru-correlation-canary-cody-private-runtime/v1'
 $script:HandoffStateSchemaVersion = 'hermes-agents-discord-cody-aru-correlation-canary-cody-operator-handoff-state/v1'
 $script:HandoffSchemaVersion = 'hermes-agents-discord-cody-aru-correlation-canary-cody-operator-handoff/v1'
+$script:RuntimeNamespaceDirectoryName = 'HermesAgentsCodyAruCorrelationCanaryV2'
 $script:NamespaceName = 'discord-cody-aru-correlation-canary-v2'
 $script:LegacyNamespaceName = 'discord-cody-aru-direct-bridge'
 $script:LegacyBootstrapSchemaVersion = 'hermes-agents-discord-cody-aru-cody-token-dpapi-bootstrap/v1'
@@ -134,7 +135,7 @@ function Assert-CodyCorrelationCanaryV2TrustedStage {
     if([string]::IsNullOrWhiteSpace($script:LauncherScriptPath)){Throw-CodyCorrelationCanaryV2Error 'DISCORD_CODY_ARU_CORRELATION_CANARY_CODY_TRUSTED_STAGE_REQUIRED'}
     $scriptPath = Get-CodyCorrelationCanaryV2NormalizedPath $script:LauncherScriptPath
     $local = Get-CodyCorrelationCanaryV2NormalizedPath (Get-CodyCorrelationCanaryV2LocalAppDataRoot)
-    $namespaceRoot=Get-CodyCorrelationCanaryV2NormalizedPath (Join-Path $local 'HermesAgents')
+    $namespaceRoot=Get-CodyCorrelationCanaryV2NormalizedPath (Join-Path $local $script:RuntimeNamespaceDirectoryName)
     $service = Get-CodyCorrelationCanaryV2NormalizedPath (Join-Path $namespaceRoot $script:NamespaceName)
     $launcherRoot=Get-CodyCorrelationCanaryV2NormalizedPath (Join-Path $service 'launcher')
     $stageRoot=Get-CodyCorrelationCanaryV2NormalizedPath (Split-Path -Path $scriptPath -Parent)
